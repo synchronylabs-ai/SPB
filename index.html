@@ -1,0 +1,1297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
+    <title>Stack & Pop Blitz</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800;900&family=Press+Start+2P&display=swap" rel="stylesheet">
+    
+    <style>
+        * {
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        .font-pixel {
+            font-family: 'Press Start 2P', monospace;
+        }
+
+        body {
+            background-color: #080c14;
+            color: #ffffff;
+            overflow: hidden;
+        }
+
+        /* Screen Shake Animation */
+        .shake {
+            animation: shake 0.3s cubic-bezier(.36,.07,.19,.97) both;
+        }
+
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-3px, 1px, 0); }
+            20%, 80% { transform: translate3d(5px, -2px, 0); }
+            30%, 50%, 70% { transform: translate3d(-7px, 3px, 0); }
+            40%, 60% { transform: translate3d(7px, -3px, 0); }
+        }
+
+        /* Glowing Visual Polish */
+        .neon-glow-primary {
+            box-shadow: 0 0 25px rgba(236, 72, 153, 0.4), inset 0 0 10px rgba(236, 72, 153, 0.2);
+        }
+
+        .floating {
+            animation: float 3.2s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-8px); }
+        }
+
+        /* Scrollbars */
+        ::-webkit-scrollbar {
+            width: 5px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.6);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 9999px;
+        }
+
+        /* Colorblind High Contrast Overrides */
+        body.colorblind-mode .cb-contrast {
+            filter: contrast(1.4) saturate(1.5) brightness(1.1);
+        }
+
+        /* Reduced Motion Overrides */
+        body.reduced-motion * {
+            animation: none !important;
+            transition: none !important;
+        }
+    </style>
+
+    <!-- Capacitor native bridge: Haptics + Share when running as a native app, browser fallback otherwise -->
+    <script>
+      async function nativeHaptic(type) {
+        try {
+          const Haptics = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Haptics;
+          if (!Haptics) return false;
+          if (type === 'perfect') { await Haptics.vibrate({ duration: 20 }); await Haptics.impact({ style: 'medium' }); }
+          else if (type === 'fail') { await Haptics.vibrate({ duration: 80 }); await Haptics.notification({ type: 'error' }); }
+          else { await Haptics.impact({ style: 'light' }); }
+          return true;
+        } catch (e) { return false; }
+      }
+      async function nativeShare(shareText) {
+        try {
+          const Share = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Share;
+          if (!Share) return false;
+          await Share.share({ title: 'Stack & Pop Blitz Score', text: shareText, url: 'https://stackpopblitz.app', dialogTitle: 'Share your score' });
+          return true;
+        } catch (e) { return false; }
+      }
+    </script>
+</head>
+<body class="h-screen w-screen flex flex-col justify-between items-center relative overflow-hidden select-none">
+
+    <!-- TOP HEADER / NAV BAR -->
+    <header class="w-full max-w-md p-3 px-4 flex justify-between items-center z-20">
+        <!-- Action Buttons Left -->
+        <div class="flex items-center gap-2">
+            <button id="settingsBtn" class="w-10 h-10 rounded-2xl bg-slate-900/80 backdrop-blur-md border border-slate-700/60 flex items-center justify-center text-slate-300 hover:text-white transition active:scale-95 shadow-md">
+                <i class="fas fa-cog text-base"></i>
+            </button>
+            <button id="shopBtn" class="w-10 h-10 rounded-2xl bg-slate-900/80 backdrop-blur-md border border-slate-700/60 flex items-center justify-center text-amber-400 hover:text-amber-300 transition active:scale-95 shadow-md relative">
+                <i class="fas fa-store text-base"></i>
+                <span id="shopBadge" class="absolute -top-1 -right-1 w-3 h-3 bg-pink-500 rounded-full border-2 border-slate-950 hidden"></span>
+            </button>
+            <button id="dailyRewardBtn" class="w-10 h-10 rounded-2xl bg-slate-900/80 backdrop-blur-md border border-slate-700/60 flex items-center justify-center text-emerald-400 hover:text-emerald-300 transition active:scale-95 shadow-md relative">
+                <i class="fas fa-gift text-base"></i>
+                <span id="dailyClaimBadge" class="absolute -top-1 -right-1 w-3.5 h-3.5 bg-emerald-500 rounded-full border-2 border-slate-950 flex items-center justify-center text-[9px] font-black text-slate-950">!</span>
+            </button>
+            <button id="leaderboardBtn" class="w-10 h-10 rounded-2xl bg-slate-900/80 backdrop-blur-md border border-slate-700/60 flex items-center justify-center text-cyan-400 hover:text-cyan-300 transition active:scale-95 shadow-md">
+                <i class="fas fa-trophy text-base"></i>
+            </button>
+        </div>
+
+        <!-- Currency Counter -->
+        <div class="flex items-center gap-2 bg-slate-900/90 border border-slate-700/60 rounded-2xl px-3.5 py-1.5 backdrop-blur-md shadow-md">
+            <i class="fas fa-gem text-cyan-400 text-sm"></i>
+            <span id="gemCount" class="font-extrabold text-sm text-cyan-200">0</span>
+        </div>
+    </header>
+
+    <!-- GAME CONTAINER & CANVAS -->
+    <div id="gameContainer" class="relative w-full max-w-md flex-1 flex flex-col items-center justify-center">
+        
+        <!-- HUD / Dynamic Score -->
+        <div id="hud" class="absolute top-2 left-0 right-0 flex flex-col items-center pointer-events-none z-10 transition-opacity duration-300 opacity-0">
+            <div id="scoreDisplay" class="text-6xl font-black tracking-tight text-white drop-shadow-[0_4px_16px_rgba(0,0,0,0.6)]">0</div>
+            <div id="comboContainer" class="h-8 flex items-center gap-1 opacity-0 transition-all duration-200 transform scale-75 mt-1">
+                <span id="comboBadge" class="bg-gradient-to-r from-amber-400 via-rose-500 to-purple-600 text-slate-950 font-black text-xs px-3 py-0.5 rounded-full uppercase tracking-wider shadow-lg">5x PERFECT</span>
+            </div>
+        </div>
+
+        <!-- Game Canvas -->
+        <canvas id="gameCanvas" class="w-full h-full block rounded-3xl cursor-pointer"></canvas>
+
+        <!-- START / MAIN MENU OVERLAY -->
+        <div id="startOverlay" class="absolute inset-0 flex flex-col items-center justify-between p-6 z-20 bg-slate-950/45 backdrop-blur-sm transition-all duration-300">
+            <div class="flex flex-col items-center mt-8 text-center floating">
+                <span class="bg-indigo-500/20 border border-indigo-500/40 text-indigo-300 px-3.5 py-1 rounded-full text-xs font-extrabold uppercase tracking-widest mb-3 shadow-inner">GLOBAL HYPER-CASUAL</span>
+                <h1 class="text-5xl font-black tracking-tight bg-gradient-to-br from-white via-slate-200 to-indigo-400 bg-clip-text text-transparent drop-shadow-md">
+                    STACK & POP
+                </h1>
+                <p class="text-slate-400 text-sm mt-2 max-w-xs font-medium">Tap in rhythm to slice and stack blocks. Precision unlocks high multipliers!</p>
+            </div>
+
+            <div class="w-full flex flex-col gap-3">
+                <!-- Play Button -->
+                <button id="startBtn" class="w-full py-4 rounded-2xl bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 text-white font-black text-xl shadow-xl shadow-purple-500/25 hover:brightness-110 active:scale-95 transition flex items-center justify-center gap-3 neon-glow-primary">
+                    <i class="fas fa-play text-2xl"></i> TAP TO PLAY
+                </button>
+            </div>
+
+            <div class="text-slate-400 text-xs flex items-center gap-2 mb-2">
+                <i class="fas fa-hand-pointer animate-bounce text-pink-400"></i> Tap anywhere to drop block
+            </div>
+        </div>
+
+        <!-- GAME OVER OVERLAY -->
+        <div id="gameOverOverlay" class="absolute inset-0 flex flex-col items-center justify-center p-6 z-30 bg-slate-950/90 backdrop-blur-md hidden transition-all duration-300">
+            <div class="w-full bg-slate-900/95 border border-slate-800 rounded-3xl p-6 flex flex-col items-center text-center shadow-2xl relative overflow-hidden">
+                
+                <span class="text-rose-400 font-extrabold uppercase tracking-widest text-xs mb-1">Tower Collapsed</span>
+                <h2 class="text-3xl font-black text-white mb-4">GAME OVER</h2>
+
+                <!-- Scores Breakdown -->
+                <div class="grid grid-cols-2 gap-3 w-full mb-4">
+                    <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-3 flex flex-col items-center">
+                        <span class="text-slate-400 text-xs font-bold">SCORE</span>
+                        <span id="finalScore" class="text-3xl font-black text-white mt-0.5">0</span>
+                    </div>
+                    <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-3 flex flex-col items-center">
+                        <span class="text-slate-400 text-xs font-bold">BEST</span>
+                        <span id="bestScore" class="text-3xl font-black text-amber-400 mt-0.5">0</span>
+                    </div>
+                </div>
+
+                <!-- Gems Earned Summary -->
+                <div class="w-full bg-cyan-950/40 border border-cyan-800/40 rounded-xl p-2.5 flex items-center justify-between mb-5 px-4 text-xs">
+                    <span class="text-cyan-300 font-semibold">Gems Earned This Run:</span>
+                    <span class="font-extrabold text-cyan-300 text-sm flex items-center gap-1">
+                        +<span id="earnedGemsCount">0</span> <i class="fas fa-gem text-cyan-400"></i>
+                    </span>
+                </div>
+
+                <!-- Monetization / Rewarded Ad Action Buttons -->
+                <div class="w-full flex flex-col gap-2.5 mb-4">
+                    <button id="reviveAdBtn" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-extrabold text-sm shadow-lg shadow-emerald-500/20 hover:brightness-110 active:scale-98 transition flex items-center justify-center gap-2">
+                        <i class="fas fa-video text-amber-300"></i>
+                        <span>REVIVE & CONTINUE</span>
+                        <span class="bg-amber-400 text-slate-950 text-[10px] font-black px-1.5 py-0.5 rounded ml-1">AD</span>
+                    </button>
+
+                    <button id="doubleGemsAdBtn" class="w-full py-3 rounded-xl bg-slate-800 border border-amber-500/40 text-amber-300 font-extrabold text-xs hover:bg-slate-750 active:scale-98 transition flex items-center justify-center gap-2">
+                        <i class="fas fa-gem text-cyan-400"></i>
+                        <span>2X GEMS REWARD</span>
+                        <span class="bg-amber-400 text-slate-950 text-[10px] font-black px-1.5 py-0.5 rounded ml-1">AD</span>
+                    </button>
+                </div>
+
+                <!-- Secondary Actions (Share & Replay) -->
+                <div class="w-full grid grid-cols-2 gap-2.5">
+                    <button id="shareScoreBtn" class="py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs transition active:scale-98 flex items-center justify-center gap-2">
+                        <i class="fas fa-share-alt"></i> Share Score
+                    </button>
+                    <button id="restartBtn" class="py-3 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-bold text-xs transition active:scale-98">
+                        Play Again
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- SIMULATED INTERSTITIAL & REWARDED AD MODAL (PRODUCTION AD SDK EMULATOR) -->
+        <div id="adModal" class="absolute inset-0 z-50 bg-black flex flex-col items-center justify-between p-6 hidden">
+            <div class="w-full flex justify-between items-center text-xs text-slate-400">
+                <span class="bg-slate-800 px-2.5 py-1 rounded-md font-semibold">SPONSORED AD</span>
+                <span id="adTimer" class="font-extrabold text-amber-400">Reward in 5s...</span>
+            </div>
+            
+            <div class="flex flex-col items-center text-center my-auto">
+                <div class="w-20 h-20 rounded-2xl bg-gradient-to-tr from-pink-500 via-purple-500 to-indigo-500 flex items-center justify-center text-4xl text-white mb-4 shadow-2xl animate-pulse">
+                    <i class="fas fa-gamepad"></i>
+                </div>
+                <h3 class="text-2xl font-black text-white">BLOCK POP WORLD TOUR</h3>
+                <p class="text-slate-400 text-xs mt-2 max-w-xs">Join over 10 million players worldwide! Download free today on iOS and Android.</p>
+                <div class="mt-5 bg-indigo-600 text-white font-extrabold text-xs px-6 py-3 rounded-xl uppercase tracking-wider shadow-lg">Install Now</div>
+            </div>
+
+            <button id="closeAdBtn" class="w-full py-3.5 bg-slate-800 text-slate-400 font-bold rounded-xl text-sm disabled:opacity-40 transition" disabled>
+                Skip Ad
+            </button>
+        </div>
+
+        <!-- STORE / SKIN SHOP MODAL -->
+        <div id="shopModal" class="absolute inset-0 z-40 bg-slate-950/95 backdrop-blur-md p-6 flex flex-col hidden">
+            <div class="flex justify-between items-center mb-5">
+                <div>
+                    <h3 class="text-2xl font-black text-white">SKIN SHOP</h3>
+                    <p class="text-slate-400 text-xs">Customize your stack & sound effects</p>
+                </div>
+                <button id="closeShopBtn" class="w-9 h-9 rounded-full bg-slate-800 text-slate-400 flex items-center justify-center hover:text-white">
+                    <i class="fas fa-times text-base"></i>
+                </button>
+            </div>
+
+            <div id="themesList" class="flex-1 overflow-y-auto space-y-3 pr-1">
+                <!-- Skins dynamically inserted -->
+            </div>
+        </div>
+
+        <!-- DAILY REWARDS MODAL -->
+        <div id="dailyModal" class="absolute inset-0 z-40 bg-slate-950/95 backdrop-blur-md p-6 flex flex-col hidden">
+            <div class="flex justify-between items-center mb-5">
+                <div>
+                    <h3 class="text-2xl font-black text-white">DAILY REWARDS</h3>
+                    <p class="text-slate-400 text-xs">Claim daily gems & build your login streak!</p>
+                </div>
+                <button id="closeDailyBtn" class="w-9 h-9 rounded-full bg-slate-800 text-slate-400 flex items-center justify-center hover:text-white">
+                    <i class="fas fa-times text-base"></i>
+                </button>
+            </div>
+
+            <div id="dailyGrid" class="grid grid-cols-3 gap-2.5 mb-4">
+                <!-- 7 days dynamically generated -->
+            </div>
+
+            <div class="mt-auto bg-slate-900 border border-slate-800 rounded-2xl p-4 flex items-center justify-between">
+                <div>
+                    <div class="text-xs font-bold text-slate-300">Next Streak Claim</div>
+                    <div id="claimTimer" class="text-xs text-amber-400 font-extrabold mt-0.5">Ready to Claim!</div>
+                </div>
+                <button id="claimDailyBtn" class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-extrabold text-xs shadow-lg disabled:opacity-40 disabled:cursor-not-allowed">
+                    CLAIM NOW
+                </button>
+            </div>
+        </div>
+
+        <!-- LEADERBOARD & RANKINGS MODAL -->
+        <div id="leaderboardModal" class="absolute inset-0 z-40 bg-slate-950/95 backdrop-blur-md p-6 flex flex-col hidden">
+            <div class="flex justify-between items-center mb-4">
+                <div>
+                    <h3 class="text-2xl font-black text-white">LEADERBOARDS</h3>
+                    <p class="text-slate-400 text-xs">Top stack champions</p>
+                </div>
+                <button id="closeLeaderboardBtn" class="w-9 h-9 rounded-full bg-slate-800 text-slate-400 flex items-center justify-center hover:text-white">
+                    <i class="fas fa-times text-base"></i>
+                </button>
+            </div>
+
+            <!-- Tab Switcher -->
+            <div class="flex bg-slate-900 rounded-xl p-1 mb-4 border border-slate-800">
+                <button id="tabGlobal" class="flex-1 py-1.5 rounded-lg text-xs font-extrabold bg-indigo-600 text-white transition">Global</button>
+                <button id="tabLocal" class="flex-1 py-1.5 rounded-lg text-xs font-extrabold text-slate-400 hover:text-white transition">My Top Runs</button>
+            </div>
+
+            <div id="leaderboardList" class="flex-1 overflow-y-auto space-y-2.5 pr-1">
+                <!-- Leaderboard content inserted here -->
+            </div>
+        </div>
+
+        <!-- SETTINGS MODAL -->
+        <div id="settingsModal" class="absolute inset-0 z-40 bg-slate-950/95 backdrop-blur-md p-6 flex flex-col hidden">
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h3 class="text-2xl font-black text-white">SETTINGS</h3>
+                    <p class="text-slate-400 text-xs">Preferences & Accessibility</p>
+                </div>
+                <button id="closeSettingsBtn" class="w-9 h-9 rounded-full bg-slate-800 text-slate-400 flex items-center justify-center hover:text-white">
+                    <i class="fas fa-times text-base"></i>
+                </button>
+            </div>
+
+            <div class="space-y-4">
+                <!-- Sound Toggle -->
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <i class="fas fa-volume-up text-indigo-400 text-lg"></i>
+                        <div>
+                            <div class="text-sm font-bold text-white">Sound Effects</div>
+                            <div class="text-[11px] text-slate-400">Audio chime & pitch scale</div>
+                        </div>
+                    </div>
+                    <input type="checkbox" id="settingSound" class="w-5 h-5 accent-indigo-500 rounded cursor-pointer" checked>
+                </div>
+
+                <!-- Haptics Toggle -->
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <i class="fas fa-mobile-alt text-emerald-400 text-lg"></i>
+                        <div>
+                            <div class="text-sm font-bold text-white">Haptic Vibration</div>
+                            <div class="text-[11px] text-slate-400">Touch feedback for blocks</div>
+                        </div>
+                    </div>
+                    <input type="checkbox" id="settingHaptics" class="w-5 h-5 accent-emerald-500 rounded cursor-pointer" checked>
+                </div>
+
+                <!-- Colorblind High Contrast Toggle -->
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <i class="fas fa-eye text-amber-400 text-lg"></i>
+                        <div>
+                            <div class="text-sm font-bold text-white">High Contrast Mode</div>
+                            <div class="text-[11px] text-slate-400">Enhanced color readability</div>
+                        </div>
+                    </div>
+                    <input type="checkbox" id="settingColorblind" class="w-5 h-5 accent-amber-500 rounded cursor-pointer">
+                </div>
+
+                <!-- Reduced Motion Toggle -->
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <i class="fas fa-film text-pink-400 text-lg"></i>
+                        <div>
+                            <div class="text-sm font-bold text-white">Reduced Motion</div>
+                            <div class="text-[11px] text-slate-400">Disable screen shakes & float</div>
+                        </div>
+                    </div>
+                    <input type="checkbox" id="settingReducedMotion" class="w-5 h-5 accent-pink-500 rounded cursor-pointer">
+                </div>
+            </div>
+
+            <div class="mt-auto text-center text-xs text-slate-500 font-semibold">
+                Stack & Pop Blitz v2.5 • Production Build
+            </div>
+        </div>
+
+    </div>
+
+    <!-- BOTTOM BANNER AD CONTAINER (REFRESH TIMER SIMULATOR) -->
+    <footer class="w-full max-w-md bg-slate-900/90 border-t border-slate-800/80 p-2 px-3 flex items-center justify-between text-xs text-slate-400 z-20">
+        <div class="flex items-center gap-2">
+            <span class="bg-amber-400/20 text-amber-300 font-black px-1.5 py-0.5 rounded text-[9px] uppercase tracking-wider">Ad</span>
+            <span id="bannerText" class="truncate max-w-[210px] text-slate-300 font-medium">Merge Dragons 3D — Play Free!</span>
+        </div>
+        <button id="bannerActionBtn" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1 rounded-lg text-[11px] font-extrabold transition">
+            INSTALL
+        </button>
+    </footer>
+
+    <!-- GAME ENGINE & PRODUCTION LOGIC -->
+    <script>
+        /**
+         * Web Audio Synthesizer with Dynamic Skin Tonal Profiles
+         */
+        class SoundFX {
+            constructor() {
+                this.ctx = null;
+                this.muted = false;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    this.ctx = new AudioContext();
+                }
+                if (this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            }
+
+            playPop(pitchMultiplier = 1, skinStyle = 'neon') {
+                if (this.muted) return;
+                this.init();
+                
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                let waveType = 'sine';
+                let baseFreq = 261.63; // C4
+
+                if (skinStyle === 'retro') {
+                    waveType = 'square';
+                    baseFreq = 220.00;
+                } else if (skinStyle === 'cyber') {
+                    waveType = 'sawtooth';
+                    baseFreq = 293.66;
+                } else if (skinStyle === 'golden') {
+                    waveType = 'triangle';
+                    baseFreq = 329.63;
+                }
+
+                osc.type = waveType;
+                osc.frequency.setValueAtTime(baseFreq * pitchMultiplier, now);
+                osc.frequency.exponentialRampToValueAtTime(baseFreq * pitchMultiplier * 1.4, now + 0.08);
+
+                gain.gain.setValueAtTime(0.25, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                osc.start(now);
+                osc.stop(now + 0.08);
+            }
+
+            playPerfect() {
+                if (this.muted) return;
+                this.init();
+
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(523.25, now);
+                osc.frequency.exponentialRampToValueAtTime(659.25, now + 0.12);
+
+                gain.gain.setValueAtTime(0.35, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                osc.start(now);
+                osc.stop(now + 0.14);
+            }
+
+            playSlice() {
+                if (this.muted) return;
+                this.init();
+
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(160, now);
+                osc.frequency.exponentialRampToValueAtTime(50, now + 0.09);
+
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                osc.start(now);
+                osc.stop(now + 0.09);
+            }
+
+            playFail() {
+                if (this.muted) return;
+                this.init();
+
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(140, now);
+                osc.frequency.linearRampToValueAtTime(35, now + 0.35);
+
+                gain.gain.setValueAtTime(0.35, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                osc.start(now);
+                osc.stop(now + 0.35);
+            }
+        }
+
+        const audio = new SoundFX();
+
+        /**
+         * Expanded Themes Config
+         */
+        const THEMES = [
+            { id: 'neon', name: 'Cyber Neon', cost: 0, gradient: ['#ec4899', '#8b5cf6', '#3b82f6'], style: 'neon' },
+            { id: 'pastel', name: 'Pastel Dream', cost: 150, gradient: ['#f472b6', '#fbbf24', '#34d399'], style: 'pastel' },
+            { id: 'retro', name: 'Retro 8-Bit', cost: 300, gradient: ['#ef4444', '#eab308', '#22c55e'], style: 'retro' },
+            { id: 'cyber', name: 'Cyberpunk 2099', cost: 500, gradient: ['#06b6d4', '#f43f5e', '#a855f7'], style: 'cyber' },
+            { id: 'golden', name: 'Golden Deluxe', cost: 1000, gradient: ['#f59e0b', '#fbbf24', '#d97706'], style: 'golden' }
+        ];
+
+        /**
+         * Main Production Game Engine
+         */
+        class StackGame {
+            constructor() {
+                this.canvas = document.getElementById('gameCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                
+                // Persistent Game State
+                this.score = 0;
+                this.bestScore = parseInt(localStorage.getItem('stack_best_score') || '0');
+                this.gems = parseInt(localStorage.getItem('stack_gems') || '0');
+                this.activeTheme = localStorage.getItem('stack_theme') || 'neon';
+                this.unlockedThemes = JSON.parse(localStorage.getItem('stack_unlocked_themes') || '["neon"]');
+                this.localScores = JSON.parse(localStorage.getItem('stack_local_scores') || '[]');
+                
+                // Settings Persistent State
+                this.settings = JSON.parse(localStorage.getItem('stack_settings') || '{"sound":true,"haptics":true,"colorblind":false,"reducedMotion":false}');
+
+                // Daily Rewards Persistent State
+                this.dailyStreak = parseInt(localStorage.getItem('stack_daily_streak') || '0');
+                this.lastClaimTime = parseInt(localStorage.getItem('stack_last_claim') || '0');
+
+                // Engine Entities
+                this.stack = [];
+                this.particles = [];
+                this.activeBlock = null;
+
+                this.blockHeight = 32;
+                this.cameraY = 0;
+                this.targetCameraY = 0;
+                this.speed = 3.5;
+                this.direction = 1;
+
+                this.combo = 0;
+                this.gameState = 'START';
+                this.currentLeaderboardTab = 'global';
+
+                this.initResize();
+                this.applySettings();
+                this.bindEvents();
+                this.updateUI();
+                this.initBannerSimulator();
+                this.checkDailyRewardBadge();
+
+                // Loop
+                requestAnimationFrame(() => this.loop());
+            }
+
+            initResize() {
+                const resize = () => {
+                    const rect = this.canvas.parentElement.getBoundingClientRect();
+                    this.canvas.width = rect.width;
+                    this.canvas.height = rect.height;
+                };
+                window.addEventListener('resize', resize);
+                resize();
+            }
+
+            applySettings() {
+                audio.muted = !this.settings.sound;
+                document.getElementById('settingSound').checked = this.settings.sound;
+                document.getElementById('settingHaptics').checked = this.settings.haptics;
+                document.getElementById('settingColorblind').checked = this.settings.colorblind;
+                document.getElementById('settingReducedMotion').checked = this.settings.reducedMotion;
+
+                document.body.classList.toggle('colorblind-mode', this.settings.colorblind);
+                document.body.classList.toggle('reduced-motion', this.settings.reducedMotion);
+            }
+
+            saveSettings() {
+                localStorage.setItem('stack_settings', JSON.stringify(this.settings));
+                this.applySettings();
+            }
+
+            async triggerHaptic(type = 'tap') {
+                if (!this.settings.haptics) return;
+                if (await nativeHaptic(type)) return;
+                if (!navigator.vibrate) return;
+                if (type === 'tap') navigator.vibrate(12);
+                else if (type === 'perfect') navigator.vibrate([15, 30, 20]);
+                else if (type === 'fail') navigator.vibrate([60, 40, 80]);
+            }
+
+            getThemeObj() {
+                return THEMES.find(t => t.id === this.activeTheme) || THEMES[0];
+            }
+
+            getBlockColor(index) {
+                const theme = this.getThemeObj();
+                const colors = theme.gradient;
+                const cycle = Math.floor(index / 5) % colors.length;
+                const nextCycle = (cycle + 1) % colors.length;
+                const factor = (index % 5) / 5;
+
+                return this.interpolateColor(colors[cycle], colors[nextCycle], factor);
+            }
+
+            interpolateColor(color1, color2, factor) {
+                const c1 = parseInt(color1.slice(1), 16);
+                const c2 = parseInt(color2.slice(1), 16);
+
+                const r1 = (c1 >> 16) & 0xff, g1 = (c1 >> 8) & 0xff, b1 = c1 & 0xff;
+                const r2 = (c2 >> 16) & 0xff, g2 = (c2 >> 8) & 0xff, b2 = c2 & 0xff;
+
+                const r = Math.round(r1 + factor * (r2 - r1));
+                const g = Math.round(g1 + factor * (g2 - g1));
+                const b = Math.round(b1 + factor * (b2 - b1));
+
+                return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
+            }
+
+            startNewGame(isRevive = false) {
+                if (!isRevive) {
+                    this.score = 0;
+                    this.combo = 0;
+                    this.stack = [];
+                    this.particles = [];
+                    
+                    const baseWidth = Math.min(this.canvas.width * 0.65, 220);
+                    const baseBlock = {
+                        x: (this.canvas.width - baseWidth) / 2,
+                        y: this.canvas.height - 120,
+                        width: baseWidth,
+                        color: this.getBlockColor(0)
+                    };
+                    this.stack.push(baseBlock);
+                    this.spawnActiveBlock(baseWidth);
+                } else {
+                    const topBlock = this.stack[this.stack.length - 1];
+                    this.spawnActiveBlock(topBlock.width);
+                }
+
+                this.gameState = 'PLAYING';
+                document.getElementById('startOverlay').classList.add('hidden');
+                document.getElementById('gameOverOverlay').classList.add('hidden');
+                document.getElementById('hud').classList.remove('opacity-0');
+                this.updateScoreDisplay();
+            }
+
+            spawnActiveBlock(width) {
+                const topBlock = this.stack[this.stack.length - 1];
+                const y = topBlock.y - this.blockHeight;
+
+                this.speed = 3.5 + Math.min(this.stack.length * 0.16, 7.0);
+                this.direction = Math.random() > 0.5 ? 1 : -1;
+
+                this.activeBlock = {
+                    x: this.direction === 1 ? -width : this.canvas.width,
+                    y: y,
+                    width: width,
+                    color: this.getBlockColor(this.stack.length)
+                };
+            }
+
+            handleTap() {
+                if (this.gameState !== 'PLAYING') return;
+
+                const topBlock = this.stack[this.stack.length - 1];
+                const curr = this.activeBlock;
+
+                const diff = curr.x - topBlock.x;
+                const absDiff = Math.abs(diff);
+                const tolerance = 6;
+
+                if (absDiff < tolerance) {
+                    // PERFECT STACK
+                    curr.x = topBlock.x;
+                    this.combo++;
+                    audio.playPerfect();
+                    
+                    const theme = this.getThemeObj();
+                    const pitchMultiplier = 1 + (this.combo % 8) * 0.1;
+                    audio.playPop(pitchMultiplier, theme.style);
+
+                    this.triggerHaptic('perfect');
+                    this.createPerfectSparkles(curr);
+                    this.showComboUI();
+
+                    this.score += 1 + Math.floor(this.combo / 3);
+                    
+                    if (this.combo % 3 === 0) {
+                        this.gems += 2;
+                        this.updateUI();
+                    }
+                } else {
+                    // SLICED STACK
+                    this.combo = 0;
+                    this.hideComboUI();
+                    audio.playSlice();
+                    this.triggerHaptic('tap');
+
+                    const newWidth = curr.width - absDiff;
+
+                    if (newWidth <= 0) {
+                        this.triggerGameOver();
+                        return;
+                    }
+
+                    let slicedX = diff > 0 ? curr.x + newWidth : curr.x;
+                    let slicedWidth = absDiff;
+                    this.createFallingSlice(slicedX, curr.y, slicedWidth, curr.color);
+
+                    if (diff > 0) {
+                        curr.width = newWidth;
+                    } else {
+                        curr.x = topBlock.x;
+                        curr.width = newWidth;
+                    }
+
+                    this.score += 1;
+                }
+
+                this.stack.push({ ...curr });
+
+                if (this.stack.length > 5) {
+                    this.targetCameraY = (this.stack.length - 5) * this.blockHeight;
+                }
+
+                this.updateScoreDisplay();
+                this.spawnActiveBlock(curr.width);
+            }
+
+            createFallingSlice(x, y, width, color) {
+                this.particles.push({
+                    type: 'slice',
+                    x: x,
+                    y: y,
+                    width: width,
+                    height: this.blockHeight,
+                    color: color,
+                    vx: (Math.random() - 0.5) * 4,
+                    vy: 2,
+                    gravity: 0.4,
+                    rotation: 0,
+                    vRot: (Math.random() - 0.5) * 0.2,
+                    opacity: 1
+                });
+            }
+
+            createPerfectSparkles(block) {
+                if (!this.settings.reducedMotion) {
+                    document.getElementById('gameContainer').classList.remove('shake');
+                    void document.getElementById('gameContainer').offsetWidth;
+                    document.getElementById('gameContainer').classList.add('shake');
+                }
+
+                for (let i = 0; i < 20; i++) {
+                    this.particles.push({
+                        type: 'sparkle',
+                        x: block.x + Math.random() * block.width,
+                        y: block.y + Math.random() * this.blockHeight,
+                        size: Math.random() * 6 + 3,
+                        color: block.color,
+                        vx: (Math.random() - 0.5) * 8,
+                        vy: (Math.random() - 0.5) * 8 - 3,
+                        gravity: 0.15,
+                        opacity: 1
+                    });
+                }
+            }
+
+            triggerGameOver() {
+                this.gameState = 'GAMEOVER';
+                audio.playFail();
+                this.triggerHaptic('fail');
+
+                if (this.score > this.bestScore) {
+                    this.bestScore = this.score;
+                    localStorage.setItem('stack_best_score', this.bestScore.toString());
+                }
+
+                // Save Local Top Scores
+                this.localScores.push({ score: this.score, date: new Date().toLocaleDateString() });
+                this.localScores.sort((a, b) => b.score - a.score);
+                this.localScores = this.localScores.slice(0, 10);
+                localStorage.setItem('stack_local_scores', JSON.stringify(this.localScores));
+
+                const gemsEarned = Math.floor(this.score / 2);
+                this.gems += gemsEarned;
+                this.updateUI();
+
+                document.getElementById('finalScore').innerText = this.score;
+                document.getElementById('bestScore').innerText = this.bestScore;
+                document.getElementById('earnedGemsCount').innerText = gemsEarned;
+                document.getElementById('doubleGemsAdBtn').classList.remove('opacity-50', 'pointer-events-none');
+
+                document.getElementById('gameOverOverlay').classList.remove('hidden');
+                document.getElementById('hud').classList.add('opacity-0');
+            }
+
+            showComboUI() {
+                const comboContainer = document.getElementById('comboContainer');
+                const comboBadge = document.getElementById('comboBadge');
+
+                comboBadge.innerText = `${this.combo}x PERFECT!`;
+                comboContainer.classList.remove('opacity-0', 'scale-75');
+                comboContainer.classList.add('opacity-100', 'scale-110');
+
+                setTimeout(() => {
+                    comboContainer.classList.remove('scale-110');
+                    comboContainer.classList.add('scale-100');
+                }, 150);
+            }
+
+            hideComboUI() {
+                const comboContainer = document.getElementById('comboContainer');
+                comboContainer.classList.add('opacity-0', 'scale-75');
+            }
+
+            updateScoreDisplay() {
+                document.getElementById('scoreDisplay').innerText = this.score;
+            }
+
+            updateUI() {
+                document.getElementById('gemCount').innerText = this.gems;
+                localStorage.setItem('stack_gems', this.gems.toString());
+                localStorage.setItem('stack_theme', this.activeTheme);
+                localStorage.setItem('stack_unlocked_themes', JSON.stringify(this.unlockedThemes));
+            }
+
+            bindEvents() {
+                const handleInput = (e) => {
+                    if (e.target.closest('button') || e.target.closest('#shopModal') || e.target.closest('#leaderboardModal') || e.target.closest('#adModal') || e.target.closest('#settingsModal') || e.target.closest('#dailyModal')) {
+                        return;
+                    }
+                    if (this.gameState === 'PLAYING') {
+                        this.handleTap();
+                    }
+                };
+
+                window.addEventListener('pointerdown', handleInput);
+
+                // Main Menu Play
+                document.getElementById('startBtn').addEventListener('click', () => this.startNewGame());
+                document.getElementById('restartBtn').addEventListener('click', () => this.startNewGame());
+
+                // Rewarded Ads
+                document.getElementById('reviveAdBtn').addEventListener('click', () => {
+                    this.showAdModal('Revive', () => this.startNewGame(true));
+                });
+
+                document.getElementById('doubleGemsAdBtn').addEventListener('click', () => {
+                    this.showAdModal('Double Gems', () => {
+                        const bonusGems = Math.floor(this.score / 2);
+                        this.gems += bonusGems;
+                        this.updateUI();
+                        document.getElementById('doubleGemsAdBtn').classList.add('opacity-50', 'pointer-events-none');
+                    });
+                });
+
+                // Social Sharing API Integration
+                document.getElementById('shareScoreBtn').addEventListener('click', async () => {
+                    const shareText = `🎮 I stacked ${this.score} blocks in Stack & Pop Blitz! Can you beat my high score? 🔥`;
+                    if (await nativeShare(shareText)) return;
+                    if (navigator.share) {
+                        navigator.share({
+                            title: 'Stack & Pop Blitz Score',
+                            text: shareText,
+                            url: window.location.href
+                        }).catch(() => {});
+                    } else {
+                        document.execCommand('copy');
+                        const btn = document.getElementById('shareScoreBtn');
+                        btn.innerHTML = `<i class="fas fa-check"></i> Copied to Clipboard!`;
+                        setTimeout(() => {
+                            btn.innerHTML = `<i class="fas fa-share-alt"></i> Share Score`;
+                        }, 2000);
+                    }
+                });
+
+                // Modal Toggle Triggers
+                document.getElementById('shopBtn').addEventListener('click', () => {
+                    this.renderShop();
+                    document.getElementById('shopModal').classList.remove('hidden');
+                });
+                document.getElementById('closeShopBtn').addEventListener('click', () => {
+                    document.getElementById('shopModal').classList.add('hidden');
+                });
+
+                document.getElementById('dailyRewardBtn').addEventListener('click', () => {
+                    this.renderDailyModal();
+                    document.getElementById('dailyModal').classList.remove('hidden');
+                });
+                document.getElementById('closeDailyBtn').addEventListener('click', () => {
+                    document.getElementById('dailyModal').classList.add('hidden');
+                });
+
+                document.getElementById('leaderboardBtn').addEventListener('click', () => {
+                    this.renderLeaderboard();
+                    document.getElementById('leaderboardModal').classList.remove('hidden');
+                });
+                document.getElementById('closeLeaderboardBtn').addEventListener('click', () => {
+                    document.getElementById('leaderboardModal').classList.add('hidden');
+                });
+
+                document.getElementById('settingsBtn').addEventListener('click', () => {
+                    document.getElementById('settingsModal').classList.remove('hidden');
+                });
+                document.getElementById('closeSettingsBtn').addEventListener('click', () => {
+                    document.getElementById('settingsModal').classList.add('hidden');
+                });
+
+                // Settings Checkbox Handlers
+                document.getElementById('settingSound').addEventListener('change', (e) => {
+                    this.settings.sound = e.target.checked;
+                    this.saveSettings();
+                });
+                document.getElementById('settingHaptics').addEventListener('change', (e) => {
+                    this.settings.haptics = e.target.checked;
+                    this.saveSettings();
+                });
+                document.getElementById('settingColorblind').addEventListener('change', (e) => {
+                    this.settings.colorblind = e.target.checked;
+                    this.saveSettings();
+                });
+                document.getElementById('settingReducedMotion').addEventListener('change', (e) => {
+                    this.settings.reducedMotion = e.target.checked;
+                    this.saveSettings();
+                });
+
+                // Leaderboard Tabs
+                document.getElementById('tabGlobal').addEventListener('click', () => {
+                    this.currentLeaderboardTab = 'global';
+                    document.getElementById('tabGlobal').className = 'flex-1 py-1.5 rounded-lg text-xs font-extrabold bg-indigo-600 text-white transition';
+                    document.getElementById('tabLocal').className = 'flex-1 py-1.5 rounded-lg text-xs font-extrabold text-slate-400 hover:text-white transition';
+                    this.renderLeaderboard();
+                });
+
+                document.getElementById('tabLocal').addEventListener('click', () => {
+                    this.currentLeaderboardTab = 'local';
+                    document.getElementById('tabLocal').className = 'flex-1 py-1.5 rounded-lg text-xs font-extrabold bg-indigo-600 text-white transition';
+                    document.getElementById('tabGlobal').className = 'flex-1 py-1.5 rounded-lg text-xs font-extrabold text-slate-400 hover:text-white transition';
+                    this.renderLeaderboard();
+                });
+            }
+
+            showAdModal(rewardName, rewardCallback) {
+                const adModal = document.getElementById('adModal');
+                const adTimer = document.getElementById('adTimer');
+                const closeAdBtn = document.getElementById('closeAdBtn');
+
+                adModal.classList.remove('hidden');
+                closeAdBtn.disabled = true;
+
+                let secondsLeft = 5;
+                adTimer.innerText = `Reward in ${secondsLeft}s...`;
+
+                const interval = setInterval(() => {
+                    secondsLeft--;
+                    if (secondsLeft > 0) {
+                        adTimer.innerText = `Reward in ${secondsLeft}s...`;
+                    } else {
+                        clearInterval(interval);
+                        adTimer.innerText = 'Reward Unlocked!';
+                        closeAdBtn.disabled = false;
+                        closeAdBtn.classList.remove('text-slate-400');
+                        closeAdBtn.classList.add('bg-gradient-to-r', 'from-emerald-500', 'to-teal-600', 'text-white');
+                    }
+                }, 1000);
+
+                closeAdBtn.onclick = () => {
+                    adModal.classList.add('hidden');
+                    rewardCallback();
+                };
+            }
+
+            initBannerSimulator() {
+                const ads = [
+                    { title: "Merge Cats 3D — Play Free!", btn: "INSTALL" },
+                    { title: "Idle Space Miner — Claim Bonus", btn: "PLAY NOW" },
+                    { title: "Brain Puzzle 2026 — Viral Hit!", btn: "DOWNLOAD" }
+                ];
+
+                let idx = 0;
+                setInterval(() => {
+                    idx = (idx + 1) % ads.length;
+                    document.getElementById('bannerText').innerText = ads[idx].title;
+                    document.getElementById('bannerActionBtn').innerText = ads[idx].btn;
+                }, 8000);
+            }
+
+            checkDailyRewardBadge() {
+                const now = Date.now();
+                const oneDayMs = 24 * 60 * 60 * 1000;
+                const canClaim = (now - this.lastClaimTime) >= oneDayMs;
+                document.getElementById('dailyClaimBadge').style.display = canClaim ? 'flex' : 'none';
+            }
+
+            renderDailyModal() {
+                const grid = document.getElementById('dailyGrid');
+                grid.innerHTML = '';
+
+                const now = Date.now();
+                const oneDayMs = 24 * 60 * 60 * 1000;
+                const canClaim = (now - this.lastClaimTime) >= oneDayMs;
+
+                const rewards = [50, 100, 150, 200, 300, 450, 750];
+
+                for (let i = 0; i < 7; i++) {
+                    const isClaimed = i < this.dailyStreak;
+                    const isCurrent = i === this.dailyStreak && canClaim;
+
+                    const card = document.createElement('div');
+                    card.className = `p-3 rounded-2xl border flex flex-col items-center justify-center text-center relative ${
+                        isClaimed
+                            ? 'bg-slate-900/40 border-slate-800 opacity-50'
+                            : isCurrent
+                            ? 'bg-gradient-to-b from-indigo-950 to-slate-900 border-amber-400/80 shadow-lg shadow-amber-500/10'
+                            : 'bg-slate-900 border-slate-800'
+                    }`;
+
+                    card.innerHTML = `
+                        <span class="text-[10px] font-bold text-slate-400">Day ${i + 1}</span>
+                        <i class="fas fa-gem text-cyan-400 text-lg my-1.5"></i>
+                        <span class="text-xs font-black text-white">+${rewards[i]}</span>
+                        ${isClaimed ? '<i class="fas fa-check-circle text-emerald-400 text-xs absolute top-1.5 right-1.5"></i>' : ''}
+                    `;
+
+                    grid.appendChild(card);
+                }
+
+                const claimBtn = document.getElementById('claimDailyBtn');
+                const timerDisplay = document.getElementById('claimTimer');
+
+                if (canClaim) {
+                    claimBtn.disabled = false;
+                    timerDisplay.innerText = 'Ready to Claim!';
+                    claimBtn.onclick = () => {
+                        this.gems += rewards[this.dailyStreak % 7];
+                        this.dailyStreak = (this.dailyStreak + 1) % 7;
+                        this.lastClaimTime = Date.now();
+                        localStorage.setItem('stack_daily_streak', this.dailyStreak.toString());
+                        localStorage.setItem('stack_last_claim', this.lastClaimTime.toString());
+                        this.updateUI();
+                        this.checkDailyRewardBadge();
+                        this.renderDailyModal();
+                    };
+                } else {
+                    claimBtn.disabled = true;
+                    const remainingMs = oneDayMs - (now - this.lastClaimTime);
+                    const hours = Math.floor(remainingMs / (1000 * 60 * 60));
+                    const mins = Math.floor((remainingMs % (1000 * 60 * 60)) / (1000 * 60));
+                    timerDisplay.innerText = `Next in ${hours}h ${mins}m`;
+                }
+            }
+
+            renderShop() {
+                const listContainer = document.getElementById('themesList');
+                listContainer.innerHTML = '';
+
+                THEMES.forEach(theme => {
+                    const isUnlocked = this.unlockedThemes.includes(theme.id);
+                    const isActive = this.activeTheme === theme.id;
+
+                    const item = document.createElement('div');
+                    item.className = `p-4 rounded-2xl border flex items-center justify-between transition ${
+                        isActive ? 'bg-slate-800 border-indigo-500 shadow-lg' : 'bg-slate-900/60 border-slate-800'
+                    }`;
+
+                    item.innerHTML = `
+                        <div class="flex items-center gap-3.5">
+                            <div class="w-11 h-11 rounded-xl flex overflow-hidden border border-white/20 shadow-md">
+                                <div class="w-1/3 h-full" style="background:${theme.gradient[0]}"></div>
+                                <div class="w-1/3 h-full" style="background:${theme.gradient[1]}"></div>
+                                <div class="w-1/3 h-full" style="background:${theme.gradient[2]}"></div>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-white text-sm">${theme.name}</h4>
+                                <span class="text-[11px] text-slate-400 font-semibold">${isUnlocked ? (isActive ? 'Active Skin' : 'Unlocked') : `${theme.cost} Gems`}</span>
+                            </div>
+                        </div>
+                        <button class="shop-action-btn px-4 py-2 rounded-xl text-xs font-extrabold transition ${
+                            isActive
+                                ? 'bg-slate-700 text-slate-400 cursor-default'
+                                : isUnlocked
+                                ? 'bg-indigo-600 hover:bg-indigo-500 text-white'
+                                : this.gems >= theme.cost
+                                ? 'bg-amber-400 hover:bg-amber-300 text-slate-950 shadow-md'
+                                : 'bg-slate-800 text-slate-600 cursor-not-allowed'
+                        }">
+                            ${isActive ? 'EQUIPPED' : isUnlocked ? 'EQUIP' : 'UNLOCK'}
+                        </button>
+                    `;
+
+                    const btn = item.querySelector('.shop-action-btn');
+                    btn.addEventListener('click', () => {
+                        if (isUnlocked) {
+                            this.activeTheme = theme.id;
+                            this.updateUI();
+                            this.renderShop();
+                        } else if (this.gems >= theme.cost) {
+                            this.gems -= theme.cost;
+                            this.unlockedThemes.push(theme.id);
+                            this.activeTheme = theme.id;
+                            this.updateUI();
+                            this.renderShop();
+                        }
+                    });
+
+                    listContainer.appendChild(item);
+                });
+            }
+
+            renderLeaderboard() {
+                const container = document.getElementById('leaderboardList');
+                container.innerHTML = '';
+
+                let data = [];
+
+                if (this.currentLeaderboardTab === 'global') {
+                    data = [
+                        { name: 'ApexStacker', score: 142, flag: '🇺🇸' },
+                        { name: 'NeonPulse', score: 128, flag: '🇯🇵' },
+                        { name: 'RhythmKing', score: 115, flag: '🇬BH' },
+                        { name: 'HyperCat', score: 98, flag: '🇩🇪' },
+                        { name: 'You (Best)', score: this.bestScore, flag: '🌟', isUser: true }
+                    ];
+                    data.sort((a, b) => b.score - a.score);
+                } else {
+                    data = this.localScores.map((item, idx) => ({
+                        name: `Run #${idx + 1} (${item.date})`,
+                        score: item.score,
+                        flag: '⚡'
+                    }));
+                }
+
+                if (data.length === 0) {
+                    container.innerHTML = `<div class="text-center text-slate-500 text-xs py-8">No runs logged yet!</div>`;
+                    return;
+                }
+
+                data.forEach((entry, idx) => {
+                    const row = document.createElement('div');
+                    row.className = `p-3.5 rounded-xl border flex items-center justify-between text-sm ${
+                        entry.isUser ? 'bg-indigo-950/60 border-indigo-500/50' : 'bg-slate-900/60 border-slate-800'
+                    }`;
+
+                    row.innerHTML = `
+                        <div class="flex items-center gap-3">
+                            <span class="w-6 text-center font-black ${idx === 0 ? 'text-amber-400 text-base' : idx === 1 ? 'text-slate-300' : idx === 2 ? 'text-amber-600' : 'text-slate-500'}">
+                                ${idx + 1}
+                            </span>
+                            <span class="text-base">${entry.flag}</span>
+                            <span class="font-bold ${entry.isUser ? 'text-indigo-300' : 'text-slate-200'}">${entry.name}</span>
+                        </div>
+                        <span class="font-black text-white">${entry.score}</span>
+                    `;
+
+                    container.appendChild(row);
+                });
+            }
+
+            update() {
+                this.cameraY += (this.targetCameraY - this.cameraY) * 0.1;
+
+                if (this.gameState === 'PLAYING' && this.activeBlock) {
+                    this.activeBlock.x += this.speed * this.direction;
+
+                    if (this.activeBlock.x <= 0) {
+                        this.activeBlock.x = 0;
+                        this.direction = 1;
+                    } else if (this.activeBlock.x + this.activeBlock.width >= this.canvas.width) {
+                        this.activeBlock.x = this.canvas.width - this.activeBlock.width;
+                        this.direction = -1;
+                    }
+                }
+
+                for (let i = this.particles.length - 1; i >= 0; i--) {
+                    const p = this.particles[i];
+
+                    if (p.type === 'slice') {
+                        p.x += p.vx;
+                        p.y += p.vy;
+                        p.vy += p.gravity;
+                        p.rotation += p.vRot;
+                        p.opacity -= 0.015;
+                    } else if (p.type === 'sparkle') {
+                        p.x += p.vx;
+                        p.y += p.vy;
+                        p.vy += p.gravity;
+                        p.opacity -= 0.025;
+                    }
+
+                    if (p.opacity <= 0) {
+                        this.particles.splice(i, 1);
+                    }
+                }
+            }
+
+            draw() {
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+                this.ctx.save();
+                this.ctx.translate(0, this.cameraY);
+
+                // Draw Stack Blocks
+                for (let i = 0; i < this.stack.length; i++) {
+                    const b = this.stack[i];
+                    this.drawGlowingBlock(b.x, b.y, b.width, this.blockHeight, b.color);
+                }
+
+                // Draw Active Block
+                if (this.gameState === 'PLAYING' && this.activeBlock) {
+                    this.drawGlowingBlock(
+                        this.activeBlock.x,
+                        this.activeBlock.y,
+                        this.activeBlock.width,
+                        this.blockHeight,
+                        this.activeBlock.color
+                    );
+                }
+
+                // Draw Particles
+                for (let p of this.particles) {
+                    this.ctx.save();
+                    this.ctx.globalAlpha = Math.max(0, p.opacity);
+
+                    if (p.type === 'slice') {
+                        this.ctx.translate(p.x + p.width / 2, p.y + p.height / 2);
+                        this.ctx.rotate(p.rotation);
+                        this.ctx.fillStyle = p.color;
+                        this.ctx.fillRect(-p.width / 2, -p.height / 2, p.width, p.height);
+                    } else if (p.type === 'sparkle') {
+                        this.ctx.fillStyle = '#ffffff';
+                        this.ctx.beginPath();
+                        this.ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                        this.ctx.fill();
+                    }
+
+                    this.ctx.restore();
+                }
+
+                this.ctx.restore();
+            }
+
+            drawGlowingBlock(x, y, width, height, color) {
+                const theme = this.getThemeObj();
+
+                this.ctx.shadowColor = color;
+                this.ctx.shadowBlur = theme.style === 'retro' ? 0 : 12;
+
+                this.ctx.fillStyle = color;
+                this.ctx.beginPath();
+                this.ctx.roundRect(x, y, width, height - 2, theme.style === 'retro' ? 0 : 6);
+                this.ctx.fill();
+
+                if (theme.style !== 'retro') {
+                    this.ctx.shadowBlur = 0;
+                    this.ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
+                    this.ctx.beginPath();
+                    this.ctx.roundRect(x + 2, y + 2, width - 4, (height - 2) * 0.35, 4);
+                    this.ctx.fill();
+                }
+            }
+
+            loop() {
+                this.update();
+                this.draw();
+                requestAnimationFrame(() => this.loop());
+            }
+        }
+
+        // Initialize Game Engine on Window Load
+        window.addEventListener('load', () => {
+            new StackGame();
+        });
+    </script>
+</body>
+</html>
